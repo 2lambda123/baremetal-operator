@@ -15,31 +15,14 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	//"github.com/ghodss/yaml"
-	metal3v1alpha1 "github.com/metal3-io/baremetal-operator/pkg/apis/metal3/v1alpha1"
+	metal3v1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/metal3-io/baremetal-operator/pkg/bmc"
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner"
 )
 
 /*
-  Design qustions
-  a. Should there be descrete steps like
-     - Register
-     - Inspected
-     - Ready
-     - Provision ->
-  b. This will require the curent for loop to lookup only Ready nodes to kickstart tha actual cycle
-  c. Need new APIs
-      - PowerOn
-      - Power Off
-  d. Should the APIs be routed via protobuf server or directly interact  with drivers.
-  e. Validation of Nodes in terms of the Node’s driver has enough information to manage the Node. This polls each
-     interface on the driver, and returns the status of that interface.
-
   Assumptions:
   a. resty latest version fail POS with 307. So downgraded it to v2.0.0
-
-
-
 
 */
 
@@ -171,7 +154,7 @@ func PutRequestToMetamorph(endpointURL string, data []byte) (map[string]interfac
 
 func CheckPutRequestToMetamorph(nodeUUID string, data []byte) (err error) {
 
-	response := make(map[string]interface{})
+	var response map[string]interface{}
 	if response, err = PutRequestToMetamorph(metamorphEndpoint+"node/"+nodeUUID, []byte(data)); err != nil {
 		err = errors.Wrap(err, "failed to update node with UUID :"+nodeUUID)
 	}
@@ -326,7 +309,7 @@ func (p *redfishProvisioner) InspectHardware() (result provisioner.Result, detai
 			&metal3v1alpha1.HardwareDetails{
 				RAMMebibytes: 128 * 1024,
 				NIC: []metal3v1alpha1.NIC{
-					metal3v1alpha1.NIC{
+					{
 						Name:      "nic-1",
 						Model:     "virt-io",
 						MAC:       "ab:ba:ab:ba:ab:ba",
@@ -334,7 +317,7 @@ func (p *redfishProvisioner) InspectHardware() (result provisioner.Result, detai
 						SpeedGbps: 1,
 						PXE:       true,
 					},
-					metal3v1alpha1.NIC{
+					{
 						Name:      "nic-2",
 						Model:     "e1000",
 						MAC:       "ab:ba:ab:ba:ab:bc",
@@ -344,13 +327,13 @@ func (p *redfishProvisioner) InspectHardware() (result provisioner.Result, detai
 					},
 				},
 				Storage: []metal3v1alpha1.Storage{
-					metal3v1alpha1.Storage{
+					{
 						Name:       "disk-1 (boot)",
 						Rotational: false,
 						SizeBytes:  metal3v1alpha1.TebiByte * 93,
 						Model:      "Dell CFJ61",
 					},
-					metal3v1alpha1.Storage{
+					{
 						Name:       "disk-2",
 						Rotational: false,
 						SizeBytes:  metal3v1alpha1.TebiByte * 93,
@@ -418,8 +401,8 @@ func (p *redfishProvisioner) UpdateHardwareState() (result provisioner.Result, e
 
 // Adopt brings an externally-provisioned host under management by
 // the provisioner.
-func (p *redfishProvisioner) Adopt() (result provisioner.Result, err error) {
-	node := make(map[string]interface{})
+func (p *redfishProvisioner) Adopt(force bool) (result provisioner.Result, err error) {
+	var node map[string]interface{}
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host to adopt")
 		return
@@ -445,7 +428,7 @@ func (p *redfishProvisioner) Adopt() (result provisioner.Result, err error) {
 // dirty flag until the deprovisioning operation is completed.
 func (p *redfishProvisioner) Provision(hostconfigData provisioner.HostConfigData) (result provisioner.Result, err error) {
 
-	node := make(map[string]interface{})
+	var node map[string]interface{}
 
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host")
@@ -476,15 +459,15 @@ func (p *redfishProvisioner) Provision(hostconfigData provisioner.HostConfigData
 		if err != nil {
 			return result, errors.Wrap(err, "could not retrieve user data")
 		}
-               /*
-		//convert the yaml file to Json
-		userdataJSON, err := yaml.YAMLToJSON([]byte(userdata))
-		if err != nil {
-			return result, errors.Wrap(err, "YAML data corrupt. Could not convert YAML to JSON")
-		}
+		/*
+			//convert the yaml file to Json
+			userdataJSON, err := yaml.YAMLToJSON([]byte(userdata))
+			if err != nil {
+				return result, errors.Wrap(err, "YAML data corrupt. Could not convert YAML to JSON")
+			}
 
-		p.log.Info(string(userdataJSON))
-               */
+			p.log.Info(string(userdataJSON))
+		*/
 		err = CheckPutRequestToMetamorph(p.status.ID, []byte(userdata))
 		if err != nil {
 			return result, errors.Wrap(err, "failed to Update  user data")
@@ -541,7 +524,7 @@ func (p *redfishProvisioner) Provision(hostconfigData provisioner.HostConfigData
 // multiple times, and should return true for its dirty flag until
 // the deprovisioning operation is completed.
 func (p *redfishProvisioner) Deprovision() (result provisioner.Result, err error) {
-	node := make(map[string]interface{})
+	var node map[string]interface{}
 
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host")
@@ -560,7 +543,7 @@ func (p *redfishProvisioner) Deprovision() (result provisioner.Result, err error
 // called multiple times, and should return true for its dirty
 // flag until the deprovisioning operation is completed.
 func (p *redfishProvisioner) Delete() (result provisioner.Result, err error) {
-	node := make(map[string]interface{})
+	var node map[string]interface{}
 
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host")
@@ -586,7 +569,7 @@ func (p *redfishProvisioner) Delete() (result provisioner.Result, err error) {
 // PowerOn ensures the server is powered on independently of any image
 // provisioning operation.
 func (p *redfishProvisioner) PowerOn() (result provisioner.Result, err error) {
-	node := make(map[string]interface{})
+	var node map[string]interface{}
 
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host")
@@ -618,7 +601,7 @@ func (p *redfishProvisioner) PowerOn() (result provisioner.Result, err error) {
 // PowerOff ensures the server is powered off independently of any image
 // provisioning operation.
 func (p *redfishProvisioner) PowerOff() (result provisioner.Result, err error) {
-	node := make(map[string]interface{})
+	var node map[string]interface{}
 
 	if node, err = p.findExistingHost(); err != nil {
 		err = errors.Wrap(err, "could not find host")
@@ -643,4 +626,9 @@ func (p *redfishProvisioner) PowerOff() (result provisioner.Result, err error) {
 		p.publisher("PowerOff", "Host powered off")
 	}
 	return result, nil
+}
+
+func (p *redfishProvisioner) IsReady() (result bool, err error) {
+	p.log.Info("verifying redfish provisioner dependencies")
+	return true, nil
 }

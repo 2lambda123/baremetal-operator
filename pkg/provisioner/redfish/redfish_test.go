@@ -1,10 +1,9 @@
 package redfish
 
 import (
-  "testing"
+	"testing"
 )
 
-func Test(t *testing.T){
-  t.Log("test")
+func Test(t *testing.T) {
+	t.Log("test")
 }
-

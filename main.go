@@ -37,6 +37,7 @@ import (
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner/empty"
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner/fixture"
 	"github.com/metal3-io/baremetal-operator/pkg/provisioner/ironic"
+	"github.com/metal3-io/baremetal-operator/pkg/provisioner/redfish"
 	"github.com/metal3-io/baremetal-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -79,6 +80,7 @@ func main() {
 	var devLogging bool
 	var runInTestMode bool
 	var runInDemoMode bool
+	var runInRedfishMode bool
 
 	// From CAPI point of view, BMO should be able to watch all namespaces
 	// in case of a deployment that is not multi-tenant. If the deployment
@@ -93,6 +95,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&devLogging, "dev", false, "enable developer logging")
 	flag.BoolVar(&runInTestMode, "test-mode", false, "disable ironic communication")
+	flag.BoolVar(&runInRedfishMode, "redfish-mode", false, "redfish mode")
 	flag.BoolVar(&runInDemoMode, "demo-mode", false,
 		"use the demo provisioner to set host states")
 	flag.StringVar(&healthAddr, "health-addr", ":9440",
@@ -130,6 +133,9 @@ func main() {
 		} else if isUnmanaged {
 			ctrl.Log.Info("using empty provisioner")
 			return empty.New(host, bmcCreds, publish)
+		} else if runInRedfishMode {
+			ctrl.Log.Info("using redfish provisioner")
+			return redfish.New(host, bmcCreds, publish)
 		}
 		ironic.LogStartup()
 		return ironic.New(host, bmcCreds, publish)
